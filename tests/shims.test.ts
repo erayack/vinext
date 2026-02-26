@@ -2924,6 +2924,83 @@ describe("checkHasConditions", () => {
   });
 });
 
+describe("matchHeaders", () => {
+  it("matches source-only header rules without request context", async () => {
+    const { matchHeaders } = await import(
+      "../packages/vinext/src/config/config-matchers.js"
+    );
+    const matched = matchHeaders("/about", [
+      {
+        source: "/about",
+        headers: [{ key: "x-source-only", value: "yes" }],
+      },
+    ]);
+    expect(matched).toEqual([{ key: "x-source-only", value: "yes" }]);
+  });
+
+  it("applies header rule when has condition matches", async () => {
+    const { matchHeaders } = await import(
+      "../packages/vinext/src/config/config-matchers.js"
+    );
+    const ctx = {
+      headers: new Headers(),
+      cookies: { logged: "1" },
+      query: new URLSearchParams(),
+      host: "localhost",
+    };
+    const matched = matchHeaders(
+      "/about",
+      [
+        {
+          source: "/about",
+          has: [{ type: "cookie", key: "logged" }],
+          headers: [{ key: "x-has-cookie", value: "true" }],
+        },
+      ],
+      ctx,
+    );
+    expect(matched).toEqual([{ key: "x-has-cookie", value: "true" }]);
+  });
+
+  it("does not apply conditional header rule without request context", async () => {
+    const { matchHeaders } = await import(
+      "../packages/vinext/src/config/config-matchers.js"
+    );
+    const matched = matchHeaders("/about", [
+      {
+        source: "/about",
+        has: [{ type: "cookie", key: "logged" }],
+        headers: [{ key: "x-requires-context", value: "true" }],
+      },
+    ]);
+    expect(matched).toEqual([]);
+  });
+
+  it("does not apply header rule when missing condition fails", async () => {
+    const { matchHeaders } = await import(
+      "../packages/vinext/src/config/config-matchers.js"
+    );
+    const ctx = {
+      headers: new Headers(),
+      cookies: { blocked: "1" },
+      query: new URLSearchParams(),
+      host: "localhost",
+    };
+    const matched = matchHeaders(
+      "/about",
+      [
+        {
+          source: "/about",
+          missing: [{ type: "cookie", key: "blocked" }],
+          headers: [{ key: "x-missing-cookie", value: "true" }],
+        },
+      ],
+      ctx,
+    );
+    expect(matched).toEqual([]);
+  });
+});
+
 // ---------------------------------------------------------------------------
 // isExternalUrl unit tests (external rewrite detection)
 

@@ -6,7 +6,7 @@
  */
 import path from "node:path";
 import { pathToFileURL } from "node:url";
-import { createRequire } from "node:module";
+import { createRequire, stripTypeScriptTypes } from "node:module";
 import fs from "node:fs";
 
 export interface HasCondition {
@@ -33,6 +33,8 @@ export interface NextRewrite {
 export interface NextHeader {
   source: string;
   headers: Array<{ key: string; value: string }>;
+  has?: HasCondition[];
+  missing?: HasCondition[];
 }
 
 export interface NextI18nConfig {
@@ -210,6 +212,32 @@ export async function loadNextConfig(root: string): Promise<NextConfig | null> {
         } catch (e2) {
           console.warn(
             `[vinext] Failed to load ${filename}: ${(e2 as Error).message}`,
+          );
+          return null;
+        }
+      }
+
+      // Fallback for TypeScript config files in environments where native
+      // `.ts` ESM loading is unavailable (e.g. Node without strip-types loader).
+      // Use Node's built-in type stripper, write a temporary .mjs file, then import it.
+      if (filename.endsWith(".ts")) {
+        try {
+          const source = fs.readFileSync(configPath, "utf-8");
+          const stripped = stripTypeScriptTypes(source, { mode: "transform" });
+          const tempPath = path.join(
+            root,
+            `.vinext-next-config-${Date.now()}-${Math.random().toString(36).slice(2)}.mjs`,
+          );
+          fs.writeFileSync(tempPath, stripped, "utf-8");
+          try {
+            const mod = await import(pathToFileURL(tempPath).href);
+            return await unwrapConfig(mod);
+          } finally {
+            fs.rmSync(tempPath, { force: true });
+          }
+        } catch (eTs) {
+          console.warn(
+            `[vinext] Failed to load ${filename}: ${(eTs as Error).message}`,
           );
           return null;
         }

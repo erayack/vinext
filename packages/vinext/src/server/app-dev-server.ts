@@ -1148,7 +1148,7 @@ async function __proxyExternalRequest(request, externalUrl) {
   return new Response(upstream.body, { status: upstream.status, statusText: upstream.statusText, headers: respHeaders });
 }
 
-function __applyConfigHeaders(pathname) {
+function __applyConfigHeaders(pathname, ctx) {
   const result = [];
   for (const rule of __configHeaders) {
     const groups = [];
@@ -1164,7 +1164,13 @@ function __applyConfigHeaders(pathname) {
       .replace(/:[a-zA-Z_]\\w*/g, "[^/]+")
       .replace(/___GROUP_(\\d+)___/g, (_, idx) => "(" + groups[Number(idx)] + ")");
     const sourceRegex = __safeRegExp("^" + escaped + "$");
-    if (sourceRegex && sourceRegex.test(pathname)) result.push(...rule.headers);
+    if (sourceRegex && sourceRegex.test(pathname)) {
+      if (rule.has || rule.missing) {
+        if (!ctx) continue;
+        if (!__checkHasConditions(rule.has, rule.missing, ctx)) continue;
+      }
+      result.push(...rule.headers);
+    }
   }
   return result;
 }
@@ -1189,7 +1195,8 @@ export default async function handler(request) {
               const url = new URL(request.url);
               let pathname = url.pathname;
               ${bp ? `if (pathname.startsWith(${JSON.stringify(bp)})) pathname = pathname.slice(${JSON.stringify(bp)}.length) || "/";` : ""}
-              const extraHeaders = __applyConfigHeaders(pathname);
+              const reqCtx = __buildRequestContext(request);
+              const extraHeaders = __applyConfigHeaders(pathname, reqCtx);
               for (const h of extraHeaders) {
                 response.headers.set(h.key, h.value);
               }

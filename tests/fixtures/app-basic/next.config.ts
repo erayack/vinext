@@ -95,6 +95,18 @@ const nextConfig: NextConfig = {
         source: "/(.*)",
         headers: [{ key: "X-E2E-Header", value: "vinext-e2e" }],
       },
+      // Used by E2E: config-redirect.spec.ts — has cookie condition
+      {
+        source: "/about",
+        has: [{ type: "cookie", key: "logged-in" }],
+        headers: [{ key: "X-Has-Cookie-Header", value: "present" }],
+      },
+      // Used by E2E: config-redirect.spec.ts — missing cookie condition
+      {
+        source: "/about",
+        missing: [{ type: "cookie", key: "blocked" }],
+        headers: [{ key: "X-Missing-Cookie-Header", value: "present" }],
+      },
     ];
   },
 };

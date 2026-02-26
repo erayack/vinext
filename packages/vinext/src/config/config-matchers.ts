@@ -669,12 +669,21 @@ export async function proxyExternalRequest(
 export function matchHeaders(
   pathname: string,
   headers: NextHeader[],
+  ctx?: RequestContext,
 ): Array<{ key: string; value: string }> {
   const result: Array<{ key: string; value: string }> = [];
   for (const rule of headers) {
     const escaped = escapeHeaderSource(rule.source);
     const sourceRegex = safeRegExp("^" + escaped + "$");
     if (sourceRegex && sourceRegex.test(pathname)) {
+      if (rule.has || rule.missing) {
+        if (!ctx) {
+          continue;
+        }
+        if (!checkHasConditions(rule.has, rule.missing, ctx)) {
+          continue;
+        }
+      }
       result.push(...rule.headers);
     }
   }

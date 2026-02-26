@@ -150,14 +150,28 @@ test.describe("Config Custom Headers (OpenNext compat)", () => {
   );
 
   // Ref: opennextjs-cloudflare headers.test.ts — has/missing conditions
-  // vinext matchHeaders() in config-matchers.ts only checks source pattern.
-  // Tests: ON-15 #6 in TRACKING.md
-  test.fixme(
-    "config headers with has/missing conditions",
-    async () => {
-      // Would test: header rule with has: [{ type: "cookie", key: "logged-in" }]
-      // only applies when the cookie is present in the request.
-      // Needs: has/missing support in matchHeaders(), matchRedirect(), matchRewrite()
-    },
-  );
+  test("config headers with has/missing conditions", async ({ request }) => {
+    // has cookie rule should not apply when cookie is absent.
+    // missing cookie rule should apply when cookie is absent.
+    const noCookies = await request.get(`${BASE}/about`);
+    expect(noCookies.status()).toBe(200);
+    expect(noCookies.headers()["x-has-cookie-header"]).toBeUndefined();
+    expect(noCookies.headers()["x-missing-cookie-header"]).toBe("present");
+
+    // has cookie rule should apply when cookie is present.
+    const withLoggedIn = await request.get(`${BASE}/about`, {
+      headers: { Cookie: "logged-in=1" },
+    });
+    expect(withLoggedIn.status()).toBe(200);
+    expect(withLoggedIn.headers()["x-has-cookie-header"]).toBe("present");
+    expect(withLoggedIn.headers()["x-missing-cookie-header"]).toBe("present");
+
+    // missing cookie rule should not apply when cookie is present.
+    const withBlocked = await request.get(`${BASE}/about`, {
+      headers: { Cookie: "blocked=1" },
+    });
+    expect(withBlocked.status()).toBe(200);
+    expect(withBlocked.headers()["x-has-cookie-header"]).toBeUndefined();
+    expect(withBlocked.headers()["x-missing-cookie-header"]).toBeUndefined();
+  });
 });

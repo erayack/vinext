@@ -123,13 +123,17 @@ export async function appRouter(appDir: string): Promise<AppRoute[]> {
   const routes: AppRoute[] = [];
 
   // Process page files in a single pass
-  for await (const file of glob("**/page.{tsx,ts,jsx,js}", { cwd: appDir, exclude: ["**/@*"] })) {
+  for await (const file of glob("**/page.{tsx,ts,jsx,js}", { cwd: appDir })) {
+    const segments = file.split(/[\\/]/);
+    if (segments.some((seg) => seg.startsWith("@"))) continue;
     const route = fileToAppRoute(file, appDir, "page");
     if (route) routes.push(route);
   }
 
   // Process route handler files (API routes) in a single pass
-  for await (const file of glob("**/route.{tsx,ts,jsx,js}", { cwd: appDir, exclude: ["**/@*"] })) {
+  for await (const file of glob("**/route.{tsx,ts,jsx,js}", { cwd: appDir })) {
+    const segments = file.split(/[\\/]/);
+    if (segments.some((seg) => seg.startsWith("@"))) continue;
     const route = fileToAppRoute(file, appDir, "route");
     if (route) routes.push(route);
   }

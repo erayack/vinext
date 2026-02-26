@@ -883,7 +883,7 @@ against our Vite-based fixture apps. Each test links back to the OpenNext source
 | 2 | Permanent redirect returns 308 | PASS | |
 | 3 | Non-permanent redirect returns 307 | PASS | `/config-redirect-query` → `/about?from=config` |
 | 4 | Parameterized redirect preserves slug | PASS | `/old-blog/:slug` → `/blog/:slug` |
-| 5 | Redirect with has/missing cookie conditions | FIXME | vinext `matchRedirect()` does not support has/missing |
+| 5 | Redirect with has/missing cookie conditions | PASS | Verified via `/has-cookie-redirect` and `/missing-cookie-redirect` scenarios |
 | 6 | Config rewrite serves content at original URL | PASS | `/config-rewrite` → `/` |
 | 7 | Custom headers from next.config headers() on pages | PASS | `x-page-header` and `x-e2e-header` present |
 | 8 | Custom headers from next.config headers() on API routes | PASS | `x-custom-header` present |
@@ -928,7 +928,7 @@ against our Vite-based fixture apps. Each test links back to the OpenNext source
 | 3 | Catch-all header pattern `/(.*)`  applies to all routes | PASS | `x-e2e-header: vinext-e2e` on both page and API |
 | 4 | `poweredByHeader: false` suppresses X-Powered-By | PASS (passive) | vinext never sends X-Powered-By regardless of config |
 | 5 | Config headers NOT applied to redirect responses | PASS | Bug fix: skip headers on 3xx responses |
-| 6 | Middleware headers with has/missing conditions | FIXME | Needs has/missing support in `matchHeaders()` |
+| 6 | Config headers with has/missing conditions | PASS | `headers()` rules with `has`/`missing` now apply conditionally based on request context |
 
 ### Updated Summary (OpenNext Compat)
 
@@ -945,18 +945,18 @@ against our Vite-based fixture apps. Each test links back to the OpenNext source
 | ON-9. Parallel/Intercepting | 5 | 4 | 0 | 0 | 1 | `parallel.test.ts`, `modals.test.ts` |
 | ON-10. Server Actions | 5 | 5 | 0 | 0 | 0 | `serverActions.test.ts` |
 | ON-11. Middleware Redirect/Rewrite | 6 | 5 | 1 | 0 | 0 | `middleware.redirect.test.ts` |
-| ON-12. Config Redirects/Rewrites | 8 | 7 | 1 | 0 | 0 | `config.redirect.test.ts` |
+| ON-12. Config Redirects/Rewrites | 8 | 8 | 0 | 0 | 0 | `config.redirect.test.ts` |
 | ON-13. Trailing Slash | 3 | 3 | 0 | 0 | 0 | `trailing.test.ts` |
 | ON-14. Catch-all/Host/Query | 6 | 4 | 2 | 0 | 0 | `catch-all.test.ts`, `host.test.ts`, `query.test.ts` |
-| ON-15. Config Headers | 6 | 5 | 1 | 0 | 0 | `headers.test.ts` |
-| **Total** | **84** | **72** | **11** | **0** | **1** | |
+| ON-15. Config Headers | 6 | 6 | 0 | 0 | 0 | `headers.test.ts` |
+| **Total** | **84** | **74** | **9** | **0** | **1** | |
 
 ### New Feature Gaps Found (ON-11 through ON-15)
 
 | Feature | Test | Issue |
 |---------|------|-------|
 | `NextResponse.rewrite()` status propagation | ON-11 #5 | Status code from `NextResponse.rewrite(url, { status: 403 })` is silently dropped |
-| `has`/`missing` conditions on config redirects | ON-12 #5 | `matchRedirect()` in `config-matchers.ts` only checks source pattern |
+| ~~`has`/`missing` conditions on config redirects~~ | ~~ON-12 #5~~ | **FIXED** — redirect matching now evaluates `has`/`missing` conditions |
 | ~~Double-slash open redirect protection~~ | ~~ON-13 #3~~ | **FIXED** — `//` guard added to all entry points (PR #151) |
 | Multi-value searchParams as arrays | ON-14 #5 | `URLSearchParams.forEach()` overwrites duplicate keys; need `getAll()` |
 | Middleware request header forwarding | ON-14 #6 | `x-middleware-request-*` headers not unpacked into `headers()` context |
@@ -1227,4 +1227,3 @@ The 12 remaining tests in `route-sorting.test.ts` cover unique functionality: dy
 | `tests/dynamic.test.ts` | 11 | dynamic() SSR, ssr:false, loading props, flushPreloads |
 | `tests/script.test.ts` | 9 | Script strategy SSR (beforeInteractive vs others) |
 | `tests/form.test.ts` | 6 | Form SSR, string/function actions, useActionState |
-
