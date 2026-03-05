@@ -588,6 +588,27 @@ describe("App Router integration", () => {
     expect(html).toMatch(/\$RX\("[^"]*","NEXT_HTTP_ERROR_FALLBACK/);
   });
 
+  it("async server throw in Suspense falls back to client rendering without dev decode crash (React 19 regression)", async () => {
+    // Regression for issue #50:
+    // React 19 dev-mode Flight decoding can crash in resolveErrorDev() with
+    // "Invalid hook call" / null dispatcher errors while SSR consumes an RSC
+    // stream that includes an error chunk.
+    const res = await fetch(`${baseUrl}/react19-dev-rsc-error`);
+    const html = await res.text();
+
+    expect(res.status).toBe(200);
+    // In React 19 dev mode, this route switches to client rendering when the
+    // async server throw is encountered during Flight streaming. The key
+    // regression check is that decode no longer crashes with a null dispatcher.
+    // Note: "Switched to client rendering" is a React internal message that
+    // may change across React versions.
+    expect(html).toContain("Switched to client rendering");
+    expect(html).toContain("react19-dev-rsc-error");
+    expect(html).toContain('data-testid="react19-dev-rsc-loading"');
+    expect(html).not.toContain("Invalid hook call");
+    expect(html).not.toContain("Cannot read properties of null (reading 'useContext')");
+  });
+
   it("renders error boundary wrapper for routes with error.tsx", async () => {
     const res = await fetch(`${baseUrl}/error-test`);
     expect(res.status).toBe(200);

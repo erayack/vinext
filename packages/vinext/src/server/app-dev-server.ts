@@ -2317,6 +2317,20 @@ async function collectStreamChunks(stream) {
   return chunks;
 }
 
+// React 19 dev-mode workaround (see VinextFlightRoot in handleSsr):
+//
+// In dev, Flight error decoding in react-server-dom-webpack/client.edge
+// can hit resolveErrorDev() which (via React's dev error stack capture)
+// expects a non-null hooks dispatcher.
+//
+// Vinext previously called createFromReadableStream() outside of any React render.
+// When an RSC stream contains an error, dev-mode decoding could crash with:
+//   - "Invalid hook call"
+//   - "Cannot read properties of null (reading 'useContext')"
+//
+// Fix: call createFromReadableStream() lazily inside a React component render.
+// This mirrors Next.js behavior and ensures the dispatcher is set.
+
 /**
  * Create a TransformStream that appends RSC chunks as inline <script> tags
  * to the HTML stream. This allows progressive hydration — the browser receives
@@ -2451,7 +2465,18 @@ export async function handleSsr(rscStream, navContext, fontData) {
     // immediately in the HTML shell, then stream in resolved content as RSC
     // chunks arrive. Awaiting here would block until all async server components
     // complete, collapsing the streaming behavior.
-    const root = createFromReadableStream(ssrStream);
+    // Lazily create the Flight root inside render so React's hook dispatcher is set
+    // (avoids React 19 dev-mode resolveErrorDev() crash). VinextFlightRoot returns
+    // a thenable (not a ReactNode), which React 19 consumes via its internal
+    // thenable-as-child suspend/resume behavior. This matches Next.js's approach.
+    let flightRoot;
+    function VinextFlightRoot() {
+      if (!flightRoot) {
+        flightRoot = createFromReadableStream(ssrStream);
+      }
+      return flightRoot;
+    }
+    const root = _ssrCE(VinextFlightRoot);
 
     // Wrap with ServerInsertedHTMLContext.Provider so libraries that use
     // useContext(ServerInsertedHTMLContext) (Apollo Client, styled-components,
@@ -2506,11 +2531,11 @@ export async function handleSsr(rscStream, navContext, fontData) {
     const insertedElements = flushServerInsertedHTML();
 
     // Render the inserted elements to HTML strings
-    const { createElement, Fragment } = await import("react");
+    const { Fragment } = await import("react");
     let insertedHTML = "";
     for (const el of insertedElements) {
       try {
-        insertedHTML += renderToStaticMarkup(createElement(Fragment, null, el));
+        insertedHTML += renderToStaticMarkup(_ssrCE(Fragment, null, el));
       } catch {
         // Skip elements that can't be rendered
       }
